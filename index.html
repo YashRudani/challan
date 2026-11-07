@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Challan Maker</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+html{color-scheme:light}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+
+/* Layout: form column on the left, live A5 sheet preview pinned on the right; stacks on phones */
+:root{
+  --bg:#eef1f6; --panel:#ffffff; --fg:#1b2233; --muted:#5d6780; --line:#d5dbe7;
+  --ink:#2b3a8c; --ink-soft:#e4e8f7; --danger:#b3261e; --ok:#1f7a4d;
+  --paper:#ffffff; --paper-ink:#111;
+  --ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151d; --panel:#1b202b; --fg:#e6e9f2; --muted:#9aa3b8; --line:#2e3545;
+  --ink:#9fb0ff; --ink-soft:#252c45; --danger:#ff8a80; --ok:#6fd3a0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151d; --panel:#1b202b; --fg:#e6e9f2; --muted:#9aa3b8; --line:#2e3545;
+  --ink:#9fb0ff; --ink-soft:#252c45; --danger:#ff8a80; --ok:#6fd3a0; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:14px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:24px;align-items:start}
+@media (max-width:920px){.wrap{grid-template-columns:minmax(0,1fr)}}
+header.top{max-width:1180px;margin:0 auto 16px;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px}
+h1{font-size:22px;margin:0;font-weight:700;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px;min-width:0}
+.stack{display:grid;gap:16px;min-width:0}
+h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0;font-weight:600}
+label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500;min-width:0}
+input,select,textarea{font:inherit;font-size:14px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 9px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:56px}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+@media (max-width:480px){.row2,.row3{grid-template-columns:1fr}}
+.num{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:8px 12px;font-weight:500}
+button.primary{background:var(--ink);border-color:var(--ink);color:var(--panel);font-weight:600;padding:12px 16px;font-size:15px}
+button.link{border:none;background:none;color:var(--ink);padding:4px 0;font-weight:600}
+button.x{border:none;background:none;color:var(--muted);padding:4px 6px;font-size:18px;line-height:1}
+button.x:hover{color:var(--danger)}
+.items{overflow-x:auto}
+table.it{width:100%;border-collapse:collapse;min-width:560px}
+table.it th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;font-weight:600;padding:0 4px 6px}
+table.it td{padding:3px 4px;vertical-align:middle}
+table.it td.sn{color:var(--muted);font-family:var(--mono);width:28px}
+table.it td.amt{font-family:var(--mono);text-align:right;white-space:nowrap;width:100px;font-variant-numeric:tabular-nums}
+table.it input{padding:6px 7px}
+.charge{display:grid;grid-template-columns:minmax(0,1fr) 120px 30px;gap:8px;align-items:center}
+.totals{display:grid;gap:6px;border-top:1px dashed var(--line);padding-top:10px}
+.totals div{display:flex;justify-content:space-between;gap:12px}
+.totals .grand{font-size:17px;font-weight:700}
+.totals span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.words{color:var(--muted);font-size:13px}
+.preview{position:sticky;top:16px;display:grid;gap:12px}
+@media (max-width:920px){.preview{position:static}}
+.sheet{background:var(--paper);border-radius:4px;box-shadow:0 1px 2px rgba(20,30,60,.12),0 8px 24px rgba(20,30,60,.10);aspect-ratio:148/210;width:100%;max-width:100%}
+.sheet svg{width:100%;height:100%;display:block}
+.meta{font-size:12px;color:var(--muted);word-break:break-all}
+.msg{font-size:13px;min-height:1.2em}
+.msg.ok{color:var(--ok)} .msg.err{color:var(--danger)}
+.brandrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
+.addbrand{display:flex;gap:8px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>Challan Maker</h1>
+  <p class="sub">Fill the form, check the sheet on the right, download an A5 PDF.</p>
+</header>
+
+<div class="wrap">
+  <form class="stack" id="f" autocomplete="off">
+    <section class="card">
+      <h2>Brand</h2>
+      <label>Top line
+        <input id="topline" value="MAHAVIR NAMAH">
+      </label>
+      <div class="brandrow">
+        <label>Brand / company name
+          <select id="brand"></select>
+        </label>
+        <button type="button" id="toggleAdd">+ Add brand</button>
+      </div>
+      <div class="addbrand" id="addBox" hidden>
+        <input id="newBrand" placeholder="New brand name">
+        <button type="button" id="saveBrand">Add</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Customer &amp; invoice</h2>
+      <div class="row2">
+        <label>Customer name
+          <input id="cust" value="RAJU BOOT MITHIKHADI">
+        </label>
+        <label>Invoice no.
+          <input id="inv" value="1377">
+        </label>
+      </div>
+      <div class="row2">
+        <label>Address
+          <textarea id="addr" rows="2">Surat</textarea>
+        </label>
+        <label>Date
+          <input id="date" type="date">
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Items</h2>
+      <div class="items">
+        <table class="it">
+          <thead><tr><th>No</th><th>Particular</th><th>Size</th><th>Qty</th><th>Rate</th><th style="text-align:right">Amount</th><th></th></tr></thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+      </div>
+      <div><button type="button" class="link" id="addItem">+ Add item</button></div>
+    </section>
+
+    <section class="card">
+      <h2>Additional charges</h2>
+      <div id="charges" class="stack" style="gap:8px"></div>
+      <div><button type="button" class="link" id="addCharge">+ Add charge</button></div>
+      <div class="totals">
+        <div><span>Total quantity</span><span id="tQty">0</span></div>
+        <div><span>Items total</span><span id="tAmt">0.00</span></div>
+        <div><span>Additional charges</span><span id="tChg">0.00</span></div>
+        <div class="grand"><span>Final total</span><span id="tGrand">₹ 0.00</span></div>
+        <div class="words" id="tWords"></div>
+      </div>
+    </section>
+  </form>
+
+  <aside class="preview">
+    <div class="sheet" id="sheet" aria-label="A5 challan preview"></div>
+    <div class="meta">File: <span id="fname"></span></div>
+    <button type="button" class="primary" id="dl">Download A5 PDF</button>
+    <div class="actions">
+      <button type="button" id="newChallan">New challan (next invoice no.)</button>
+    </div>
+    <div class="msg" id="msg" role="status"></div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(function(){
+const $ = id => document.getElementById(id);
+const store = {
+  get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+};
+
+/* ---------- brands ---------- */
+const DEFAULT_BRANDS = ["SL","MF"];
+let brands = [...new Set([...DEFAULT_BRANDS, ...store.get("cm_brands", [])])];
+function renderBrands(sel){
+  const b=$("brand"); b.innerHTML="";
+  brands.forEach(n=>{const o=document.createElement("option");o.value=n;o.textContent=n;b.appendChild(o)});
+  if(sel && brands.includes(sel)) b.value=sel;
+}
+renderBrands(store.get("cm_brand","SL"));
+$("toggleAdd").onclick=()=>{$("addBox").hidden=!$("addBox").hidden; if(!$("addBox").hidden) $("newBrand").focus()};
+$("saveBrand").onclick=()=>{
+  const n=$("newBrand").value.trim().toUpperCase(); if(!n) return;
+  if(!brands.includes(n)) brands.push(n);
+  store.set("cm_brands",brands); renderBrands(n); $("newBrand").value=""; $("addBox").hidden=true; update();
+};
+$("newBrand").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("saveBrand").click()}});
+
+/* ---------- helpers ---------- */
+const fmt = n => (Number(n)||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+const num = v => { const n=parseFloat(String(v).replace(/,/g,"")); return isFinite(n)?n:0; };
+const ones=["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+const tens=["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+function two(n){return n<20?ones[n]:tens[Math.floor(n/10)]+(n%10?" "+ones[n%10]:"")}
+function three(n){const h=Math.floor(n/100),r=n%100;return (h?ones[h]+" Hundred"+(r?" ":""):"")+(r?two(r):"")}
+function words(amount){
+  amount=Math.round(amount*100)/100;
+  let r=Math.floor(amount), p=Math.round((amount-r)*100);
+  if(r===0&&p===0) return "Zero Only";
+  const parts=[];
+  const cr=Math.floor(r/10000000); r%=10000000;
+  const lk=Math.floor(r/100000); r%=100000;
+  const th=Math.floor(r/1000); r%=1000;
+  if(cr) parts.push(three(cr)+" Crore");
+  if(lk) parts.push(two(lk)+" Lakh");
+  if(th) parts.push(two(th)+" Thousand");
+  if(r) parts.push(three(r));
+  let s=parts.join(" ");
+  if(p) s+=(s?" and ":"")+two(p)+" Paise";
+  return s+" Only";
+}
+function ddmmyyyy(iso){ if(!iso) return ""; const [y,m,d]=iso.split("-"); return `${d}/${m}/${y}`; }
+
+/* ---------- items & charges ---------- */
+function itemRow(it={}){
+  const tr=document.createElement("tr");
+  tr.innerHTML=`<td class="sn"></td>
+    <td><input data-k="part" placeholder="Item name" style="min-width:180px"></td>
+    <td><input data-k="size" style="width:64px"></td>
+    <td><input data-k="qty" class="num" inputmode="decimal" style="width:64px"></td>
+    <td><input data-k="rate" class="num" inputmode="decimal" style="width:84px"></td>
+    <td class="amt">0.00</td>
+    <td><button type="button" class="x" aria-label="Remove item">×</button></td>`;
+  tr.querySelectorAll("input").forEach(i=>{i.value=it[i.dataset.k]??""});
+  tr.querySelector(".x").onclick=()=>{tr.remove();update()};
+  $("itemsBody").appendChild(tr); renumber();
+}
+function renumber(){[...$("itemsBody").rows].forEach((r,i)=>{r.cells[0].textContent=i+1;r.querySelectorAll("input").forEach(inp=>inp.id=`item_${i}_${inp.dataset.k}`)})}
+function chargeRow(c={}){
+  const d=document.createElement("div"); d.className="charge";
+  d.innerHTML=`<input data-k="label" placeholder="e.g. BHADU"><input data-k="amt" class="num" inputmode="decimal" placeholder="0.00"><button type="button" class="x" aria-label="Remove charge">×</button>`;
+  d.querySelectorAll("input").forEach(i=>{i.value=c[i.dataset.k]??""});
+  d.querySelector(".x").onclick=()=>{d.remove();update()};
+  $("charges").appendChild(d);
+  [...$("charges").children].forEach((el,i)=>el.querySelectorAll("input").forEach(inp=>inp.id=`chg_${i}_${inp.dataset.k}`));
+}
+$("addItem").onclick=()=>{itemRow();update();const rs=$("itemsBody").rows;rs[rs.length-1].querySelector("input").focus()};
+$("addCharge").onclick=()=>{chargeRow();update()};
+
+function collect(){
+  const items=[...$("itemsBody").rows].map(r=>{
+    const g=k=>r.querySelector(`[data-k=${k}]`).value;
+    const qty=num(g("qty")), rate=num(g("rate"));
+    return {part:g("part").trim(),size:g("size").trim(),qtyRaw:g("qty"),rateRaw:g("rate"),qty,rate,amount:qty*rate};
+  });
+  const charges=[...$("charges").children].map(d=>({label:d.querySelector("[data-k=label]").value.trim(),amt:num(d.querySelector("[data-k=amt]").value),raw:d.querySelector("[data-k=amt]").value}))
+    .filter(c=>c.label||c.raw!=="");
+  const qtyT=items.reduce((s,i)=>s+i.qty,0), amtT=items.reduce((s,i)=>s+i.amount,0), chgT=charges.reduce((s,c)=>s+c.amt,0);
+  return {
+    top:$("topline").value.trim(), brand:$("brand").value||"", cust:$("cust").value.trim(),
+    addr:$("addr").value, inv:$("inv").value.trim(), date:ddmmyyyy($("date").value),
+    items:items.filter(i=>i.part||i.qty||i.rate), charges, qtyT, amtT, chgT, grand:amtT+chgT
+  };
+}
+
+/* ---------- drawing (shared by PDF and preview) ---------- */
+const PT=25.4/72;
+const measurer = new window.jspdf.jsPDF({unit:"mm",format:"a5"});
+function textW(str,font,bold,size){measurer.setFont(font,bold?"bold":"normal");return measurer.getStringUnitWidth(str)*size*PT}
+function fit(str,font,bold,size,maxW){ if(textW(str,font,bold,size)<=maxW) return str; while(str.length&&textW(str+"…",font,bold,size)>maxW) str=str.slice(0,-1); return str+"…"; }
+const qtyStr=n=>Number.isInteger(n)?String(n):String(+n.toFixed(3));
+
+function draw(p,d){
+  const L=8,R=140,T=8,B=202, lw=0.25;
+  const SER="times", SAN="helvetica";
+  // header
+  p.rect(L,T,R-L,B-T,lw);
+  if(d.top) p.text(d.top,(L+R)/2,T+7,{font:SER,bold:true,size:9,align:"center"});
+  p.text(fit(d.brand,SER,true,18,R-L-6),(L+R)/2,T+16.5,{font:SER,bold:true,size:18,align:"center"});
+  const pT=30, pB=49, divX=94;
+  p.line(L,pT,R,pT,lw); p.line(divX,pT,divX,pB,lw);
+  p.text(fit(d.cust,SER,false,10,divX-L-4),L+2,pT+5.5,{font:SER,size:10});
+  d.addr.split(/\n/).slice(0,3).forEach((ln,i)=>p.text(fit(ln.trim(),SER,false,8,divX-L-4),L+2,pT+10+i*3.6,{font:SER,size:8}));
+  p.text("Invoice No :",divX+2,pT+5.5,{font:SAN,size:8});
+  p.text(d.inv,divX+19,pT+5.5,{font:SAN,bold:true,size:8.5});
+  p.text("Date",divX+2,pT+12,{font:SAN,size:8});
+  p.text(d.date,divX+19,pT+12,{font:SAN,bold:true,size:8.5});
+  // table geometry
+  const cols=[L,15,79,90,103,118,R]; // No | Particular | Size | Qty | Rate | Amount
+  const hT=pB, hB=pB+6;
+  const nCh=d.charges.length;
+  const wordsH=7, grandH=6, chH=5, totH=6;
+  const footH=totH+nCh*chH+grandH+wordsH;
+  const totT=B-footH, totB=totT+totH;
+  p.line(L,hT,R,hT,lw); p.line(L,hB,R,hB,lw);
+  ["NO","PARTICULAR","SIZE","QNTY","RATE","AMOUNT"].forEach((h,i)=>p.text(h,(cols[i]+cols[i+1])/2,hT+4.3,{font:SER,bold:true,size:7.5,align:"center"}));
+  for(let i=1;i<cols.length-1;i++) p.line(cols[i],hT,cols[i],totB,lw);
+  // rows
+  const bodyT=hB, bodyH=totT-bodyT;
+  let rowH=5.2; if(d.items.length*rowH>bodyH-1) rowH=(bodyH-1)/d.items.length;
+  const fs=Math.min(8,rowH/PT*0.78);
+  d.items.forEach((it,i)=>{
+    const y=bodyT+rowH*(i+1)-1.3;
+    p.text(String(i+1),(cols[0]+cols[1])/2,y,{font:SER,size:fs,align:"center"});
+    p.text(fit(it.part.toUpperCase(),SER,false,fs,cols[2]-cols[1]-2),cols[1]+1,y,{font:SER,size:fs});
+    p.text(fit(it.size,SER,false,fs,cols[3]-cols[2]-1),(cols[2]+cols[3])/2,y,{font:SER,size:fs,align:"center"});
+    if(it.qtyRaw!=="") p.text(qtyStr(it.qty),(cols[3]+cols[4])/2,y,{font:SER,size:fs,align:"center"});
+    if(it.rateRaw!=="") p.text(fmt(it.rate),cols[5]-1,y,{font:SER,size:fs,align:"right"});
+    p.text(fmt(it.amount),R-1,y,{font:SER,size:fs,align:"right"});
+  });
+  // total row
+  p.line(L,totT,R,totT,lw); p.line(L,totB,R,totB,lw);
+  p.text("Total :",(cols[1]+cols[2])/2,totT+4.3,{font:SER,bold:true,size:8.5,align:"center"});
+  p.text(qtyStr(d.qtyT),(cols[3]+cols[4])/2,totT+4.3,{font:SER,bold:true,size:8.5,align:"center"});
+  p.text(fmt(d.amtT),R-1,totT+4.3,{font:SER,bold:true,size:8.5,align:"right"});
+  // charges + grand total
+  const amtX=cols[5];
+  let y=totB;
+  d.charges.forEach(c=>{
+    p.text("+ "+fit(c.label.toUpperCase()||"CHARGES",SAN,true,7.5,40),amtX-2,y+3.7,{font:SAN,bold:true,size:7.5,align:"right"});
+    p.text(fmt(c.amt),R-1,y+3.7,{font:SER,size:8.5,align:"right"});
+    y+=chH;
+  });
+  p.line(amtX,totB,amtX,y+grandH,lw);
+  if(nCh) p.line(amtX,y,R,y,lw);
+  p.text("GRAND TOTAL",amtX-2,y+4.2,{font:SAN,bold:true,size:7.5,align:"right"});
+  p.text(fmt(d.grand),R-1,y+4.2,{font:SER,bold:true,size:9.5,align:"right"});
+  y+=grandH;
+  p.line(L,y,R,y,lw);
+  const lab="Rupees (in words) :-";
+  p.text(lab,L+2,y+4.6,{font:SAN,bold:true,size:7.5});
+  const lx=L+3+textW(lab,SAN,true,7.5);
+  p.text(fit(words(d.grand),SAN,true,7.5,R-lx-2),lx+1,y+4.6,{font:SAN,bold:true,size:7.5});
+}
+
+function pdfPainter(doc){
+  return {
+    line(x1,y1,x2,y2,w){doc.setLineWidth(w);doc.line(x1,y1,x2,y2)},
+    rect(x,y,w,h,lw){doc.setLineWidth(lw);doc.rect(x,y,w,h)},
+    text(s,x,y,o){if(!s)return;doc.setFont(o.font,o.bold?"bold":"normal");doc.setFontSize(o.size);doc.text(String(s),x,y,{align:o.align||"left"})}
+  };
+}
+function svgPainter(){
+  const out=[]; const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+  const fam={times:'"Times New Roman",Times,"Liberation Serif",serif',helvetica:'Helvetica,Arial,"Liberation Sans",sans-serif'};
+  return {
+    out,
+    line(x1,y1,x2,y2,w){out.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#111" stroke-width="${w}"/>`)},
+    rect(x,y,w,h,lw){out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#111" stroke-width="${lw}"/>`)},
+    text(s,x,y,o){if(!s)return;const a={center:"middle",right:"end"}[o.align]||"start";
+      out.push(`<text x="${x}" y="${y}" font-family='${fam[o.font]}' font-size="${(o.size*PT).toFixed(3)}" font-weight="${o.bold?700:400}" text-anchor="${a}" fill="#111">${esc(s)}</text>`)}
+  };
+}
+
+function fileName(d){
+  const clean=s=>s.replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim();
+  return clean([d.brand||"Challan",d.inv&&("Inv "+d.inv),d.cust].filter(Boolean).join(" - "))+".pdf";
+}
+
+/* ---------- update loop ---------- */
+function update(){
+  const d=collect();
+  [...$("itemsBody").rows].forEach(r=>{
+    const q=num(r.querySelector("[data-k=qty]").value), rt=num(r.querySelector("[data-k=rate]").value);
+    r.cells[5].textContent=fmt(q*rt);
+  });
+  $("tQty").textContent=qtyStr(d.qtyT); $("tAmt").textContent=fmt(d.amtT); $("tChg").textContent=fmt(d.chgT);
+  $("tGrand").textContent="₹ "+fmt(d.grand); $("tWords").textContent="Rupees "+words(d.grand);
+  const sp=svgPainter(); draw(sp,d);
+  $("sheet").innerHTML=`<svg viewBox="0 0 148 210" xmlns="http://www.w3.org/2000/svg"><rect width="148" height="210" fill="#fff"/>${sp.out.join("")}</svg>`;
+  $("fname").textContent=fileName(d);
+  saveDraft();
+}
+function saveDraft(){
+  store.set("cm_brand",$("brand").value);
+  store.set("cm_draft",{
+    top:$("topline").value,cust:$("cust").value,addr:$("addr").value,inv:$("inv").value,date:$("date").value,
+    items:[...$("itemsBody").rows].map(r=>Object.fromEntries([...r.querySelectorAll("input")].map(i=>[i.dataset.k,i.value]))),
+    charges:[...$("charges").children].map(c=>Object.fromEntries([...c.querySelectorAll("input")].map(i=>[i.dataset.k,i.value])))
+  });
+}
+$("f").addEventListener("input",update);
+$("f").addEventListener("change",update);
+$("f").addEventListener("submit",e=>e.preventDefault());
+
+/* ---------- initial state ---------- */
+const today=new Date(); const iso=new Date(today.getTime()-today.getTimezoneOffset()*60000).toISOString().slice(0,10);
+const draft=store.get("cm_draft",null);
+if(draft){
+  $("topline").value=draft.top??"MAHAVIR NAMAH"; $("cust").value=draft.cust??""; $("addr").value=draft.addr??"";
+  $("inv").value=draft.inv??""; $("date").value=draft.date||iso;
+  (draft.items&&draft.items.length?draft.items:[{}]).forEach(itemRow);
+  (draft.charges||[]).forEach(chargeRow);
+}else{
+  $("date").value="2026-11-06";
+  itemRow({part:"EUROSOFT ARBA CHAPPAL",size:"",qty:"24",rate:"230"});
+  chargeRow({label:"BHADU",amt:"50"});
+}
+update();
+
+/* ---------- new challan ---------- */
+$("newChallan").onclick=()=>{
+  const n=$("inv").value.match(/^(.*?)(\d+)$/);
+  if(n) $("inv").value=n[1]+String(+n[2]+1).padStart(n[2].length,"0");
+  $("cust").value=""; $("addr").value=""; $("date").value=iso;
+  $("itemsBody").innerHTML=""; itemRow();
+  const lbl=[...$("charges").children].map(c=>c.querySelector("[data-k=label]").value).filter(Boolean);
+  $("charges").innerHTML=""; (lbl.length?lbl:["BHADU"]).forEach(l=>chargeRow({label:l,amt:""}));
+  update(); setMsg("Started invoice "+$("inv").value+".","ok"); $("cust").focus();
+};
+
+/* ---------- download ---------- */
+function setMsg(t,k){$("msg").textContent=t;$("msg").className="msg"+(k?" "+k:"")}
+let dlApi=null;
+(async()=>{ try{ dlApi = window.claude ? await window.claude.use("downloads") : null; }catch(e){ dlApi=null; } })();
+$("dl").onclick=async()=>{
+  const d=collect();
+  if(!d.brand){setMsg("Pick a brand first.","err");return}
+  if(!d.items.length){setMsg("Add at least one item.","err");return}
+  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a5",orientation:"portrait"});
+  doc.setProperties({title:fileName(d).replace(/\.pdf$/,""),subject:"Challan",creator:"Challan Maker"});
+  draw(pdfPainter(doc),d);
+  const blob=doc.output("blob"); const name=fileName(d);
+  if(dlApi){
+    try{ await dlApi.save({filename:name,data:blob}); setMsg("Saved "+name,"ok"); }
+    catch(e){
+      if(e&&e.code==="declined") setMsg("Download cancelled.","");
+      else if(e&&e.code==="rate_limited") setMsg("A save prompt is already open. Try again in a moment.","err");
+      else setMsg("Couldn't save here ("+(e&&e.code||"error")+"). Open this page in a browser tab and try again.","err");
+    }
+  }else{
+    try{ doc.save(name); setMsg("Downloading "+name,"ok"); }
+    catch(e){ setMsg("Downloads aren't available in this view.","err"); }
+  }
+};
+})();
+</script>
+
+</body>
+</html>
